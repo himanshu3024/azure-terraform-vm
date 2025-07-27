@@ -12,7 +12,7 @@ This project demonstrates how to create an Azure Virtual Machine using **Terrafo
 
 ## 🌐 Live Demo
 
-**🌐 Website**: http://20.185.218.70
+**🌐 Website**: http://52.191.74.92
 
 **Features Demonstrated**:
 - ✅ Azure VM with Ubuntu 20.04 LTS
