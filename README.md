@@ -360,3 +360,4 @@ This project is licensed under the MIT License.
 ## 🏷️ Tags
 
 `#Azure` `#Terraform` `#Ansible` `#DevOps` `#InfrastructureAsCode` `#CloudComputing` `#IaC` `#Automation`
+# Trigger workflow with new SSH keys
