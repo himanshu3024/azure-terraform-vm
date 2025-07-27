@@ -53,3 +53,52 @@ jobs:
             -var="admin_username=${{ secrets.ADMIN_USERNAME || 'azureuser' }}" \
             -var="admin_ssh_public_key=${{ secrets.ADMIN_SSH_PUBLIC_KEY }}"
         working-directory: .//
+
+      - name: Get Public IP
+        id: get_ip
+        run: |
+          PUBLIC_IP=$(terraform output -raw public_ip_address)
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "Public IP: $PUBLIC_IP"
+        working-directory: .//
+
+      - name: Update Ansible Inventory
+        run: |
+          PUBLIC_IP=$(terraform output -raw public_ip_address)
+          sed -i "s/ansible_host=.*/ansible_host=$PUBLIC_IP/" ansible/inventory.ini
+          echo "Updated inventory with IP: $PUBLIC_IP"
+        working-directory: .//
+
+      - name: Wait for VM to be ready
+        run: |
+          PUBLIC_IP=$(terraform output -raw public_ip_address)
+          echo "Waiting for VM to be ready..."
+          sleep 60
+        working-directory: .//
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo apt-add-repository --yes --update ppa:ansible/ansible
+          sudo apt-get install -y ansible
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ADMIN_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $(terraform output -raw public_ip_address) >> ~/.ssh/known_hosts
+
+      - name: Configure VM with Ansible
+        run: |
+          cd ansible
+          ansible-playbook -i inventory.ini site.yml --ssh-common-args='-o StrictHostKeyChecking=no'
+        working-directory: .//
+
+      - name: Display Website URL
+        run: |
+          PUBLIC_IP=$(terraform output -raw public_ip_address)
+          echo "🌐 Website is now available at: http://$PUBLIC_IP"
+          echo "🔗 SSH connection: ssh ${{ secrets.ADMIN_USERNAME || 'azureuser' }}@$PUBLIC_IP"
+        working-directory: .//
