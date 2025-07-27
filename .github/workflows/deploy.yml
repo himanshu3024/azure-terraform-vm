@@ -10,6 +10,12 @@ jobs:
     name: Terraform Deployment
     runs-on: ubuntu-latest
 
+    env:
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -19,14 +25,25 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - name: Cache Terraform
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            .terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform
+
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -upgrade
         working-directory: ./
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -input=false
         working-directory: ./
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -input=false
         working-directory: ./
