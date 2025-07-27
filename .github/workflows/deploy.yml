@@ -65,8 +65,10 @@ jobs:
       - name: Update Ansible Inventory
         run: |
           PUBLIC_IP=$(terraform output -raw public_ip_address)
-          sed -i "s/ansible_host=.*/ansible_host=$PUBLIC_IP/" ansible/inventory.ini
+          # Replace the entire line with the new IP
+          sed -i "s/.*ansible_user=azureuser.*/$PUBLIC_IP ansible_user=azureuser ansible_ssh_private_key_file=~\/.ssh\/id_rsa/" ansible/inventory.ini
           echo "Updated inventory with IP: $PUBLIC_IP"
+          cat ansible/inventory.ini
         working-directory: .//
 
       - name: Wait for VM to be ready
@@ -88,7 +90,12 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.ADMIN_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H $(terraform output -raw public_ip_address) >> ~/.ssh/known_hosts
+          PUBLIC_IP=$(terraform output -raw public_ip_address)
+          ssh-keyscan -H $PUBLIC_IP >> ~/.ssh/known_hosts
+          echo "SSH key setup complete"
+          echo "Testing SSH connection..."
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no azureuser@$PUBLIC_IP "echo 'SSH connection successful'"
+        working-directory: .//
 
       - name: Configure VM with Ansible
         run: |
