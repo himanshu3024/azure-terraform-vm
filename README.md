@@ -20,6 +20,7 @@ This project demonstrates how to create an Azure Virtual Machine using **Terrafo
 - ✅ SSH access for remote management
 - ✅ Network Security Group with proper firewall rules
 - ✅ Automated deployment with Terraform + Ansible
+- ✅ GitHub Actions CI/CD pipeline
 
 ---
 
@@ -44,7 +45,7 @@ The project includes a GitHub Actions workflow for automated deployment:
 - Automatically runs on pushes to `main` branch
 - Requires GitHub secrets setup (see [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md))
 - Deploys infrastructure using Terraform
-- Manual Ansible configuration required after infrastructure deployment
+- Configures VM with Ansible automatically
 
 ---
 
@@ -57,9 +58,9 @@ azure-terraform-vm/
 │       └── deploy.yml          # GitHub Actions CI/CD workflow
 ├── 📁 ansible/
 │   ├── 📁 files/
-│   │   └── index.html
-│   ├── inventory.ini
-│   └── site.yml
+│   │   └── index.html          # Static website content
+│   ├── inventory.ini           # Ansible inventory
+│   └── site.yml               # Ansible playbook
 ├── 📁 screenshots/
 │   ├── 01-project-structure.png
 │   ├── 02-terraform-deployment.png
@@ -67,26 +68,24 @@ azure-terraform-vm/
 │   ├── 04-nsg-rules.png
 │   ├── 05-ansible-deployment.png
 │   ├── 06-website-live.png
-│   └── 07-terraform-outputs.png
+│   ├── 07-terraform-outputs.png
+│   └── 08-workflow-run-github.png
 ├── 📁 docs/
-│   ├── ARCHITECTURE.md
-│   ├── SCREENSHOTS.md
-│   └── GITHUB_SETUP.md
+│   └── ARCHITECTURE.md
 ├── .gitignore
 ├── ARCHITECTURE.md
-├── deploy.ps1
-├── deploy.sh
-├── deploy-wsl.sh
-├── install-ansible.ps1
-├── main.tf
-├── outputs.tf
+├── deploy.ps1                 # Windows deployment script
+├── deploy.sh                  # Linux/macOS deployment script
+├── deploy-wsl.sh             # WSL deployment script
+├── install-ansible.ps1       # Ansible installation for Windows
+├── main.tf                   # Main Terraform configuration
+├── outputs.tf                # Terraform outputs
 ├── README.md
-├── SCREENSHOTS.md
-├── terraform.tfvars.example
-├── test-website.sh
-├── update-inventory.ps1
-├── update-inventory.sh
-└── variables.tf
+├── terraform.tfvars.example  # Example variables file
+├── test-website.sh           # Website testing script
+├── update-inventory.ps1      # Windows inventory update
+├── update-inventory.sh       # Linux inventory update
+└── variables.tf              # Terraform variables
 ```
 
 ---
@@ -97,238 +96,277 @@ azure-terraform-vm/
 - **Ansible** – to configure the VM
 - **Azure CLI** – to authenticate and manage resources
 - **NGINX** – as the web server
+- **GitHub Actions** – for CI/CD automation
 
 ## 🏗️ Architecture
 
 This project implements a **multi-tier cloud infrastructure** using Infrastructure as Code (IaC) principles.
 
-**Technology Stack**:
-- **Infrastructure**: Terraform, Azure Resource Manager
-- **Configuration**: Ansible, NGINX
-- **Security**: SSH Keys, Network Security Groups
-- **Automation**: PowerShell, WSL, Git
+### **High-Level Architecture**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Azure Cloud Infrastructure                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐        │
+│  │   Terraform     │    │     Ansible     │    │     GitHub      │        │
+│  │   (IaC)         │    │   (Config Mgmt) │    │   (Version Ctrl)│        │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘        │
+│           │                       │                       │                │
+│           ▼                       ▼                       ▼                │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                    Azure Resource Group                                │ │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐        │ │
+│  │  │ Virtual Network │  │ Network Security│  │  Public IP      │        │ │
+│  │  │ (10.0.0.0/16)  │  │ Group (NSG)     │  │  Address        │        │ │
+│  │  │                 │  │ - SSH (Port 22) │  │                 │        │ │
+│  │  │ ┌─────────────┐ │  │ - HTTP (Port 80)│  │                 │        │ │
+│  │  │ │   Subnet    │ │  └─────────────────┘  └─────────────────┘        │ │
+│  │  │ │(10.0.1.0/24)│ │                                               │ │
+│  │  │ └─────────────┘ │  ┌─────────────────────────────────────────────┐ │ │
+│  │  └─────────────────┘  │           Linux Virtual Machine             │ │ │
+│  │                       │  ┌─────────────────┐  ┌─────────────────┐  │ │ │
+│  │                       │  │   Ubuntu 20.04  │  │   NGINX Web     │  │ │ │
+│  │                       │  │   LTS Server    │  │   Server        │  │ │ │
+│  │                       │  │                 │  │                 │  │ │ │
+│  │                       │  │ - SSH Access    │  │ - Static HTML   │  │ │ │
+│  │                       │  │ - Admin User    │  │ - Port 80       │  │ │ │
+│  │                       │  │ - SSH Keys      │  │ - Auto-start    │  │ │ │
+│  │                       │  └─────────────────┘  └─────────────────┘  │ │ │
+│  │                       └─────────────────────────────────────────────┘ │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### **Deployment Flow**
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   GitHub        │    │   Terraform     │    │   Ansible       │
+│   Actions       │───▶│   Infrastructure │───▶│   Configuration │
+│   (Trigger)     │    │   Deployment     │    │   Management    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Code Push     │    │   Azure VM      │    │   NGINX Web     │
+│   to Main       │    │   Creation       │    │   Server        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### **Security Architecture**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Security Implementation                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🔐 Authentication & Access Control                                        │
+│  ├── Azure Service Principal (Terraform)                                   │
+│  ├── SSH Key-based Authentication (VM Access)                             │
+│  └── Azure CLI Authentication (Management)                                │
+│                                                                             │
+│  🛡️ Network Security                                                       │
+│  ├── Network Security Group (NSG)                                          │
+│  │   ├── Inbound Rule: SSH (Port 22) - Allow                             │
+│  │   └── Inbound Rule: HTTP (Port 80) - Allow                             │
+│  ├── Private Subnet (10.0.1.0/24)                                         │
+│  └── Public IP with Static Allocation                                      │
+│                                                                             │
+│  🔒 Data Protection                                                         │
+│  ├── Encrypted VM Disks                                                    │
+│  ├── Secure SSH Key Management                                             │
+│  └── No Hardcoded Secrets in Code                                         │
+│                                                                             │
+│  🚀 Operational Security                                                   │
+│  ├── Idempotent Deployments                                                │
+│  ├── Automated Security Updates                                            │
+│  └── Audit Trail via Terraform State                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### **Resource Dependencies**
+
+```
+Resource Group (myResourceGroup)
+    ├── Virtual Network (azure-vm-project-v2-vnet)
+    │   └── Subnet (azure-vm-project-v2-subnet)
+    │       └── Network Interface (azure-vm-project-v2-nic)
+    ├── Public IP Address (azure-vm-project-v2-public-ip)
+    │   └── Network Interface
+    ├── Network Security Group (azure-vm-project-v2-nsg)
+    │   └── Subnet Association
+    └── Virtual Machine (azure-vm-project-v2-vm)
+        └── Network Interface
+```
 
 For detailed architecture information, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-## 📋 Prerequisites
+## 🚀 Quick Start
 
-Before running this project, make sure you have:
+### Prerequisites
+- Azure CLI installed and authenticated
+- Terraform installed
+- Ansible installed (for manual deployment)
 
-- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) installed
-- [Terraform](https://www.terraform.io/downloads.html) installed
-- [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) installed
-- An active Azure subscription
-- SSH key pair generated (`ssh-keygen -t rsa -b 4096`)
-
----
-
-## ⚙️ Quick Start (Recommended)
-
-### 1️⃣ Clone and Setup
-
+### Manual Deployment
 ```bash
-git clone <your-repo-url>
+# Clone the repository
+git clone <repository-url>
 cd azure-terraform-vm
 
-# Copy the example variables file
+# Copy and configure variables
 cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
 
-# Edit terraform.tfvars with your Azure credentials and SSH key
-nano terraform.tfvars
-```
-
-### 2️⃣ Configure Variables
-
-Edit `terraform.tfvars` with your values:
-
-```hcl
-# Azure Authentication
-subscription_id = "your-subscription-id"
-client_id       = "your-service-principal-client-id"
-client_secret   = "your-service-principal-client-secret"
-tenant_id       = "your-tenant-id"
-
-# SSH Configuration
-admin_ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC..."
-```
-
-### 3️⃣ Deploy Everything
-
-```bash
-# Make scripts executable
-chmod +x deploy.sh update-inventory.sh
-
-# Run the complete deployment
-./deploy.sh
-```
-
-This script will:
-- ✅ Check prerequisites
-- 🏗️ Create Azure resources with Terraform
-- 🔧 Configure the VM with Ansible
-- 🌐 Deploy your website
-
----
-
-## 🔧 Manual Deployment
-
-If you prefer to run steps manually:
-
-### 1️⃣ Azure Authentication
-
-```bash
-# Login to Azure
-az login
-
-# Set your subscription (if you have multiple)
-az account set --subscription "Your-Subscription-Name"
-```
-
-### 2️⃣ Terraform: Create Azure VM
-
-```bash
-# Initialize Terraform
+# Deploy infrastructure
 terraform init
-
-# Plan the deployment
 terraform plan
-
-# Apply the configuration
 terraform apply
+
+# Deploy application
+cd ansible
+ansible-playbook -i inventory.ini site.yml
 ```
 
-### 3️⃣ Ansible: Configure VM
-
-```bash
-# Update inventory with VM IP
-./update-inventory.sh
-
-# Run the Ansible playbook
-ansible-playbook -i ansible/inventory.ini ansible/site.yml
-```
-
-### 4️⃣ 🌐 View Your Website
-
-Open your browser and go to:
-```
-http://<your-vm-public-ip>
-```
-
----
-
-## ✅ Example Output
-
-After successful deployment:
-
-```bash
-$ ./deploy.sh
-🚀 Starting Azure VM + Ansible Deployment
-==========================================
-✅ Prerequisites check passed
-
-📦 Step 1: Initializing Terraform...
-📋 Step 2: Planning Terraform deployment...
-🏗️  Step 3: Creating Azure resources...
-🌐 Step 4: Getting VM public IP...
-VM Public IP: 20.123.456.789
-📝 Step 5: Updating Ansible inventory...
-🔧 Step 7: Configuring VM with Ansible...
-
-🎉 Deployment completed successfully!
-==========================================
-🌐 Your website is available at: http://20.123.456.789
-🔗 SSH connection: ssh azureuser@20.123.456.789
-```
-
----
-
-## 🧹 Cleanup
-
-To avoid Azure charges, destroy the resources when done:
-
-```bash
-terraform destroy
-```
-
----
-
-## 🔧 Customization
-
-### Modify the Website Content
-Edit `ansible/files/index.html` to customize your webpage content.
-
-### Change VM Configuration
-Modify `variables.tf` or `terraform.tfvars` to adjust:
-- VM size (`vm_size`)
-- Operating system (in `main.tf`)
-- Location/region (`location`)
-- Project name (`project_name`)
-
-### Add More Ansible Tasks
-Extend `ansible/site.yml` to install additional software or configurations.
+### Automated Deployment
+1. Fork this repository
+2. Set up GitHub secrets (see [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md))
+3. Push to main branch to trigger deployment
 
 ---
 
 ## 📸 Screenshots
 
-### Project Overview
+### Project Structure
 ![Project Structure](screenshots/01-project-structure.png)
 
-### Deployment Process
+### Terraform Deployment
 ![Terraform Deployment](screenshots/02-terraform-deployment.png)
+
+### Azure Resources
 ![Azure Resources](screenshots/03-azure-resources.png)
 
-### Security Configuration
+### NSG Rules
 ![NSG Rules](screenshots/04-nsg-rules.png)
 
-### Application Deployment
+### Ansible Deployment
 ![Ansible Deployment](screenshots/05-ansible-deployment.png)
+
+### Website Live
 ![Website Live](screenshots/06-website-live.png)
 
-### Verification
+### Terraform Outputs
 ![Terraform Outputs](screenshots/07-terraform-outputs.png)
+
+### GitHub Actions Workflow
+![GitHub Actions Workflow](screenshots/08-workflow-run-github.png)
 
 ---
 
-## 🚀 Advanced Features
+## ⚙️ Configuration
 
-- **Security**: SSH access enabled with proper NSG rules
-- **Automation**: Complete deployment script with error handling
-- **Flexibility**: All hardcoded values replaced with variables
-- **Idempotency**: Safe to run multiple times
+### Terraform Variables
+- `subscription_id`: Azure subscription ID
+- `client_id`: Service principal client ID
+- `client_secret`: Service principal client secret
+- `tenant_id`: Azure tenant ID
+- `location`: Azure region (default: "East US")
+- `project_name`: Project name for resource naming
+- `resource_group_name`: Resource group name
+- `vm_size`: VM size (default: "Standard_B1s")
+- `admin_username`: Admin username for VM
+- `admin_ssh_public_key`: SSH public key for VM access
+
+### Ansible Configuration
+- **Inventory**: `ansible/inventory.ini`
+- **Playbook**: `ansible/site.yml`
+- **Files**: `ansible/files/index.html`
+
+---
+
+## 🔒 Security Features
+
+- **SSH Key Authentication**: Secure access to VM
+- **Network Security Groups**: Firewall rules for ports 22 and 80
+- **Private Subnet**: VM in private subnet with public IP
+- **No Password Authentication**: SSH password authentication disabled
+- **Encrypted Storage**: VM disks are encrypted
+- **Secure Secrets Management**: No hardcoded secrets in code
+
+---
+
+## 💰 Cost Estimation
+
+**Monthly Costs (B1s VM)**:
+- **Virtual Machine**: ~$10-15/month
+- **Storage**: ~$1-2/month
+- **Network**: ~$1-2/month
+- **Total**: ~$12-19/month
+
+**Cost Optimization**:
+- Use B1s VM (smallest size)
+- Delete resources when not needed
+- Monitor usage in Azure portal
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Common Issues:
+### Common Issues
+1. **SSH Connection Failed**: Check SSH key configuration
+2. **Website Not Accessible**: Verify NSG rules and NGINX status
+3. **Terraform Errors**: Check Azure credentials and variable values
+4. **Ansible Failures**: Verify SSH connectivity and inventory
 
-1. **SSH Connection Failed**
-   - Ensure your SSH key is properly configured in `terraform.tfvars`
-   - Check that the private key exists at `~/.ssh/id_rsa`
+### Debug Commands
+```bash
+# Check VM status
+terraform show
 
-2. **Ansible Connection Timeout**
-   - Verify the VM is running: `az vm list --output table`
-   - Check the public IP in inventory.ini matches Terraform output
-   - Wait a few minutes after VM creation for it to fully boot
+# Test SSH connection
+ssh azureuser@52.191.74.92
 
-3. **Website Not Loading**
-   - Ensure NSG allows HTTP traffic (port 80) - this is configured automatically
-   - Check NGINX status: `ssh azureuser@<ip> 'sudo systemctl status nginx'`
+# Check NGINX status
+sudo systemctl status nginx
 
-4. **Terraform Authentication Error**
-   - Verify your Azure credentials in `terraform.tfvars`
-   - Run `az login` to refresh your session
+# View NGINX logs
+sudo tail -f /var/log/nginx/access.log
+```
 
 ---
 
-## 📚 Learning Resources
+## 📚 Learning Outcomes
 
-- [Terraform Azure Provider Documentation](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
-- [Ansible Documentation](https://docs.ansible.com/)
-- [Azure Virtual Machines Documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/)
+This project demonstrates:
+- ✅ **Infrastructure as Code** with Terraform
+- ✅ **Configuration Management** with Ansible
+- ✅ **Cloud Infrastructure** on Azure
+- ✅ **CI/CD Pipelines** with GitHub Actions
+- ✅ **Security Best Practices** with SSH keys and NSGs
+- ✅ **Web Server Deployment** with NGINX
+- ✅ **Automated Deployment** workflows
+- ✅ **Multi-platform Support** (Windows/Linux/macOS)
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -339,25 +377,18 @@ Extend `ansible/site.yml` to install additional software or configurations.
 
 ---
 
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
----
-
 ## 🏷️ Tags
 
 `#Azure` `#Terraform` `#Ansible` `#DevOps` `#InfrastructureAsCode` `#CloudComputing` `#IaC` `#Automation`
-# Trigger workflow with new SSH keys
+
+---
+
+## 🌐 Live Demo
+
+**🌐 Website**: http://52.191.74.92
+
+**🔗 SSH Connection**: `ssh azureuser@52.191.74.92`
+
+**📚 Documentation**: [ARCHITECTURE.md](ARCHITECTURE.md)
+
+**🔧 Setup Guide**: [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md)
