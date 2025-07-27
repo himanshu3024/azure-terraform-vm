@@ -31,7 +31,7 @@ jobs:
             -var="client_secret=${{ secrets.ARM_CLIENT_SECRET }}" \
             -var="tenant_id=${{ secrets.ARM_TENANT_ID }}" \
             -var="location=${{ secrets.LOCATION || 'East US' }}" \
-            -var="project_name=${{ secrets.PROJECT_NAME || 'azure-vm-project' }}" \
+            -var="project_name=${{ secrets.PROJECT_NAME || 'azure-vm-project-v2' }}" \
             -var="resource_group_name=${{ secrets.RESOURCE_GROUP_NAME || 'myResourceGroup' }}" \
             -var="vm_size=${{ secrets.VM_SIZE || 'Standard_B1s' }}" \
             -var="admin_username=${{ secrets.ADMIN_USERNAME || 'azureuser' }}" \
@@ -47,7 +47,7 @@ jobs:
             -var="client_secret=${{ secrets.ARM_CLIENT_SECRET }}" \
             -var="tenant_id=${{ secrets.ARM_TENANT_ID }}" \
             -var="location=${{ secrets.LOCATION || 'East US' }}" \
-            -var="project_name=${{ secrets.PROJECT_NAME || 'azure-vm-project' }}" \
+            -var="project_name=${{ secrets.PROJECT_NAME || 'azure-vm-project-v2' }}" \
             -var="resource_group_name=${{ secrets.RESOURCE_GROUP_NAME || 'myResourceGroup' }}" \
             -var="vm_size=${{ secrets.VM_SIZE || 'Standard_B1s' }}" \
             -var="admin_username=${{ secrets.ADMIN_USERNAME || 'azureuser' }}" \
@@ -93,8 +93,10 @@ jobs:
           PUBLIC_IP=$(terraform output -raw public_ip_address)
           ssh-keyscan -H $PUBLIC_IP >> ~/.ssh/known_hosts
           echo "SSH key setup complete"
-          echo "Testing SSH connection..."
-          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no azureuser@$PUBLIC_IP "echo 'SSH connection successful'"
+          echo "SSH key permissions:"
+          ls -la ~/.ssh/id_rsa
+          echo "Testing SSH connection with verbose output..."
+          ssh -v -o ConnectTimeout=30 -o StrictHostKeyChecking=no azureuser@$PUBLIC_IP "echo 'SSH connection successful'"
         working-directory: .//
 
       - name: Configure VM with Ansible
