@@ -2,12 +2,27 @@
 - name: Configure VM and Deploy Website
   hosts: web
   become: yes
+  gather_facts: yes
+  
+  pre_tasks:
+    - name: Wait for SSH to be available
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        delay: 10
+        timeout: 300
+      delegate_to: localhost
+
   tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
     - name: Install NGINX
       apt:
         name: nginx
         state: present
-        update_cache: yes
 
     - name: Copy index.html to NGINX directory
       copy:
@@ -16,9 +31,14 @@
         owner: www-data
         group: www-data
         mode: '0644'
+        backup: yes
 
-    - name: Ensure NGINX is running
+    - name: Ensure NGINX is running and enabled
       service:
         name: nginx
         state: started
         enabled: yes
+
+    - name: Display deployment info
+      debug:
+        msg: "Website deployed successfully! Visit http://{{ inventory_hostname }}"

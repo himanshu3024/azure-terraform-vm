@@ -19,28 +19,40 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = "myResourceGroup"
+  name     = var.resource_group_name
   location = var.location
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  name                = "myVnet"
+  name                = "${var.project_name}-vnet"
   address_space       = ["10.0.0.0/16"]
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
 resource "azurerm_subnet" "subnet" {
-  name                 = "mySubnet"
+  name                 = "${var.project_name}-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
 resource "azurerm_network_security_group" "nsg" {
-  name                = "myNSG"
+  name                = "${var.project_name}-nsg"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "AllowSSH"
+    priority                   = 1000
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
 
   security_rule {
     name                       = "AllowHTTP"
@@ -61,20 +73,20 @@ resource "azurerm_subnet_network_security_group_association" "subnet_nsg" {
 }
 
 resource "azurerm_public_ip" "public_ip" {
-  name                = "myPublicIP"
-  location            = var.location   # you can change this region
+  name                = "${var.project_name}-public-ip"
+  location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
-  sku                 = "Standard"  # changed from Basic
+  sku                 = "Standard"
 }
 
 resource "azurerm_network_interface" "nic" {
-  name                = "myNIC"
+  name                = "${var.project_name}-nic"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
   ip_configuration {
-    name                          = "myNICConfig"
+    name                          = "${var.project_name}-nic-config"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.public_ip.id
@@ -82,17 +94,16 @@ resource "azurerm_network_interface" "nic" {
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                = "myLinuxVM"
+  name                = "${var.project_name}-vm"
   resource_group_name = azurerm_resource_group.rg.name
   location            = var.location
-  size                = "Standard_B1s"
-  admin_username      = "azureuser"
+  size                = var.vm_size
+  admin_username      = var.admin_username
   network_interface_ids = [azurerm_network_interface.nic.id]
 
   admin_ssh_key {
-    username   = "azureuser"
-    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDp8ByKT0pfqqhsXqC/aPRL0XG1DzZCueIIJ1sM0Oa6T2n9HPJZVPtbQhOmOIggXo6vkKGtYYnb7zTHhdHUmg2C4rJNHjAZKF5LfAbWFB7RUrWni7e35o5bxtqaZBxLg1+i7D/Z46zXFYrMoz8ixWIar/SqaqMYeDsaZLsEzWgE7V0Rrip2w26HNbAWMQOgbAR8fGv6ODVIuKOcoKxBXRNc83WSo27p770zFTmc7QirI2DBwOAIpsa7+zB7oFq2Y0s8l1dnj8ZkCuK/ZU2hsv9Th8qYxyM+IMzCf9Vn5IpzFBsfC6ROOh6s+hJTb6FKij9iovUm2Fl7PViQ4HqBJeZ7 gandh@HimanshuGandhi"
-
+    username   = var.admin_username
+    public_key = var.admin_ssh_public_key
   }
 
   os_disk {

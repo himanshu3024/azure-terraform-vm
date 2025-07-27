@@ -1,0 +1,21 @@
+# Azure Authentication
+subscription_id = "your-subscription-id"
+client_id       = "your-service-principal-client-id"
+client_secret   = "your-service-principal-client-secret"
+tenant_id       = "your-tenant-id"
+
+# Azure Configuration
+location = "East US"
+
+# Project Configuration
+project_name = "my-azure-vm-project"
+resource_group_name = "myResourceGroup"
+
+# VM Configuration
+vm_size = "Standard_B1s"
+admin_username = "azureuser"
+
+# SSH Configuration
+# Generate your SSH key pair: ssh-keygen -t rsa -b 4096
+# Then copy the public key content here
+admin_ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC..." 
