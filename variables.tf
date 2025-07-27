@@ -28,7 +28,7 @@ variable "location" {
 variable "project_name" {
   description = "Name of the project (used for resource naming)"
   type        = string
-  default     = "azure-vm-project"
+  default     = "azure-vm-project-v3"
 }
 
 variable "resource_group_name" {
