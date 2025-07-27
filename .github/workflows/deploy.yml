@@ -21,7 +21,7 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./
+        working-directory: .//
 
       - name: Terraform Plan
         run: |
@@ -29,8 +29,14 @@ jobs:
             -var="subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" \
             -var="client_id=${{ secrets.ARM_CLIENT_ID }}" \
             -var="client_secret=${{ secrets.ARM_CLIENT_SECRET }}" \
-            -var="tenant_id=${{ secrets.ARM_TENANT_ID }}"
-        working-directory: ./
+            -var="tenant_id=${{ secrets.ARM_TENANT_ID }}" \
+            -var="location=${{ secrets.LOCATION || 'East US' }}" \
+            -var="project_name=${{ secrets.PROJECT_NAME || 'azure-vm-project' }}" \
+            -var="resource_group_name=${{ secrets.RESOURCE_GROUP_NAME || 'myResourceGroup' }}" \
+            -var="vm_size=${{ secrets.VM_SIZE || 'Standard_B1s' }}" \
+            -var="admin_username=${{ secrets.ADMIN_USERNAME || 'azureuser' }}" \
+            -var="admin_ssh_public_key=${{ secrets.ADMIN_SSH_PUBLIC_KEY }}"
+        working-directory: .//
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
@@ -39,5 +45,11 @@ jobs:
             -var="subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" \
             -var="client_id=${{ secrets.ARM_CLIENT_ID }}" \
             -var="client_secret=${{ secrets.ARM_CLIENT_SECRET }}" \
-            -var="tenant_id=${{ secrets.ARM_TENANT_ID }}"
-        working-directory: ./
+            -var="tenant_id=${{ secrets.ARM_TENANT_ID }}" \
+            -var="location=${{ secrets.LOCATION || 'East US' }}" \
+            -var="project_name=${{ secrets.PROJECT_NAME || 'azure-vm-project' }}" \
+            -var="resource_group_name=${{ secrets.RESOURCE_GROUP_NAME || 'myResourceGroup' }}" \
+            -var="vm_size=${{ secrets.VM_SIZE || 'Standard_B1s' }}" \
+            -var="admin_username=${{ secrets.ADMIN_USERNAME || 'azureuser' }}" \
+            -var="admin_ssh_public_key=${{ secrets.ADMIN_SSH_PUBLIC_KEY }}"
+        working-directory: .//

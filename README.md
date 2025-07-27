@@ -32,6 +32,20 @@ This project demonstrates how to create an Azure Virtual Machine using **Terrafo
    - Start the NGINX web server
 3. 🎯 **Result**: You can view the static website using the public IP of your VM
 
+## 🔄 Deployment Options
+
+### Option 1: Manual Deployment
+Use the provided scripts for local deployment:
+- `deploy.sh` (Linux/macOS)
+- `deploy.ps1` (Windows)
+
+### Option 2: GitHub Actions (CI/CD)
+The project includes a GitHub Actions workflow for automated deployment:
+- Automatically runs on pushes to `main` branch
+- Requires GitHub secrets setup (see [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md))
+- Deploys infrastructure using Terraform
+- Manual Ansible configuration required after infrastructure deployment
+
 ---
 
 ## 📁 Project Structure
@@ -40,7 +54,7 @@ This project demonstrates how to create an Azure Virtual Machine using **Terrafo
 azure-terraform-vm/
 ├── 📁 .github/
 │   └── 📁 workflows/
-│       └── deploy.yml
+│       └── deploy.yml          # GitHub Actions CI/CD workflow
 ├── 📁 ansible/
 │   ├── 📁 files/
 │   │   └── index.html
