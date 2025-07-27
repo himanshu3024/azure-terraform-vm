@@ -44,7 +44,7 @@ terraform init
 
 # Step 2: Plan Terraform deployment
 Write-Host ""
-Write-Host "📋 Step 2: Planning Terraform deployment..." -ForegroundColor Blue
+Write-Host "📋 Step 2: ePlanning Terraform deployment..." -ForegroundColor Blue
 terraform plan
 
 # Ask for confirmation
