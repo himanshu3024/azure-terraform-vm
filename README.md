@@ -534,17 +534,6 @@ git checkout -b feature/your-feature-name
 
 ---
 
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-**MIT License Benefits:**
-- ✅ **Open source** - Free to use, modify, and distribute
-- ✅ **Commercial use** - Can be used in commercial projects
-- ✅ **Attribution** - Requires credit to original author
-- ✅ **No warranty** - Provided "as is" without warranties
-
----
 
 ## 👨‍💻 Author
 
